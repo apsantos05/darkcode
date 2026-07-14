@@ -1,0 +1,391 @@
+// Dark Code CRM — modelagem de dados
+// Provider definitivo: PostgreSQL no Supabase, acessado exclusivamente pelo backend.
+// Enums permanecem como strings validadas na camada de aplicação para reduzir o
+// acoplamento entre regras de negócio e migrations do banco.
+// Valores monetários são armazenados em centavos (Int) para evitar erros de ponto flutuante.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  fullName     String
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  avatarUrl    String?
+  position     String? // cargo
+  area         String? // Trafego | Desenvolvimento | Integracoes | Automacoes | Gestao de projetos | Comercial | Administrativo | Suporte
+  role         String    @default("COLLABORATOR") // ADMIN | MANAGER | COLLABORATOR | CLIENT
+  status       String    @default("PENDING") // PENDING | ACTIVE | BLOCKED
+  lastAccessAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  clientsOwned     Client[]             @relation("ClientOwner")
+  projectsManaged  Project[]            @relation("ProjectManager")
+  projectMembers   ProjectMember[]
+  tasksCreated     Task[]               @relation("TaskCreator")
+  tasksResponsible Task[]               @relation("TaskResponsible")
+  taskAssignees    TaskAssignee[]
+  comments         TaskComment[]
+  attachments      TaskAttachment[]
+  deadlineRequests DeadlineRequest[]    @relation("DeadlineRequester")
+  deadlineReviews  DeadlineRequest[]    @relation("DeadlineReviewer")
+  revenues         Revenue[]
+  notifications    Notification[]
+  activities       ActivityLog[]
+  passwordResets   PasswordResetToken[]
+  approvedUsers    User[]               @relation("UserApprover")
+  approvedBy       User?                @relation("UserApprover", fields: [approvedById], references: [id])
+  approvedById     String?
+  timeEntries      TimeEntry[]
+
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Client {
+  id            String    @id @default(uuid())
+  legalName     String // nome ou razão social
+  tradeName     String? // nome fantasia
+  document      String? // CPF ou CNPJ
+  contactName   String? // responsável
+  email         String?
+  phone         String?
+  whatsapp      String?
+  website       String?
+  segment       String?
+  product       String? // produto/serviço contratado
+  contractCents Int       @default(0)
+  startDate     DateTime?
+  owner         User?     @relation("ClientOwner", fields: [ownerId], references: [id])
+  ownerId       String?
+  status        String    @default("LEAD") // LEAD | NEGOTIATION | ONBOARDING | ACTIVE | PAUSED | DEFAULTING | CLOSED
+  notes         String?
+  links         String? // JSON string de links
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  archivedAt    DateTime?
+
+  projects Project[]
+  tasks    Task[]
+  revenues Revenue[]
+
+  @@index([status])
+  @@index([ownerId])
+  @@map("clients")
+}
+
+model Project {
+  id            String    @id @default(uuid())
+  name          String
+  client        Client    @relation(fields: [clientId], references: [id])
+  clientId      String
+  description   String?
+  scope         String?
+  manager       User?     @relation("ProjectManager", fields: [managerId], references: [id])
+  managerId     String?
+  startDate     DateTime?
+  dueDate       DateTime?
+  contractCents Int       @default(0)
+  receivedCents Int       @default(0)
+  status        String    @default("PLANNING") // PLANNING | IN_PROGRESS | IN_REVIEW | WAITING_CLIENT | PAUSED | DONE | CANCELED | LATE
+  priority      String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT | CRITICAL
+  links         String? // JSON string
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  archivedAt    DateTime?
+
+  members  ProjectMember[]
+  tasks    Task[]
+  revenues Revenue[]
+  tags     ProjectTag[]
+
+  @@index([clientId])
+  @@index([managerId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Task {
+  id             String    @id @default(uuid())
+  title          String
+  description    String?
+  client         Client?   @relation(fields: [clientId], references: [id])
+  clientId       String?
+  project        Project?  @relation(fields: [projectId], references: [id])
+  projectId      String?
+  creator        User      @relation("TaskCreator", fields: [creatorId], references: [id])
+  creatorId      String
+  responsible    User?     @relation("TaskResponsible", fields: [responsibleId], references: [id])
+  responsibleId  String?
+  priority       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT | CRITICAL
+  status         String    @default("NOT_STARTED") // NOT_STARTED | IN_ANALYSIS | IN_PROGRESS | WAITING_CLIENT | WAITING_THIRD_PARTY | IN_REVIEW | DONE | BLOCKED | CANCELED
+  startDate      DateTime?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  estimatedHours Float?
+  blockReason    String?
+  dependsOn      Task?     @relation("TaskDependency", fields: [dependsOnId], references: [id])
+  dependsOnId    String?
+  dependents     Task[]    @relation("TaskDependency")
+  kanbanOrder    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+
+  assignees        TaskAssignee[]
+  checklistItems   TaskChecklistItem[]
+  comments         TaskComment[]
+  attachments      TaskAttachment[]
+  deadlineRequests DeadlineRequest[]
+  tags             TaskTag[]
+  timeEntries      TimeEntry[]
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([responsibleId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model TaskAssignee {
+  id        String   @id @default(uuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@map("task_assignees")
+}
+
+model TaskChecklistItem {
+  id        String    @id @default(uuid())
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  content   String
+  doneAt    DateTime?
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([taskId])
+  @@map("task_checklist_items")
+}
+
+model TaskComment {
+  id        String    @id @default(uuid())
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  author    User      @relation(fields: [authorId], references: [id])
+  authorId  String
+  content   String
+  mentions  String? // JSON string de user ids mencionados
+  editedAt  DateTime?
+  deletedAt DateTime? // exclusão lógica
+  createdAt DateTime  @default(now())
+
+  @@index([taskId])
+  @@map("task_comments")
+}
+
+model TaskAttachment {
+  id         String   @id @default(uuid())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId     String
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+  uploaderId String
+  fileName   String
+  filePath   String // chave relativa do objeto no Supabase Storage
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+model TimeEntry {
+  id        String   @id @default(uuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  hours     Float
+  note      String?
+  workedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("time_entries")
+}
+
+model DeadlineRequest {
+  id                String    @id @default(uuid())
+  task              Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId            String
+  requester         User      @relation("DeadlineRequester", fields: [requesterId], references: [id])
+  requesterId       String
+  currentDeadline   DateTime?
+  requestedDeadline DateTime
+  reason            String
+  impact            String?
+  dependencies      String?
+  plan              String?
+  notes             String?
+  status            String    @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELED | COUNTERPROPOSAL
+  reviewer          User?     @relation("DeadlineReviewer", fields: [reviewerId], references: [id])
+  reviewerId        String?
+  reviewNote        String?
+  counterDeadline   DateTime?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([taskId])
+  @@index([status])
+  @@map("task_deadline_requests")
+}
+
+model Revenue {
+  id            String    @id @default(uuid())
+  description   String
+  client        Client?   @relation(fields: [clientId], references: [id])
+  clientId      String?
+  project       Project?  @relation(fields: [projectId], references: [id])
+  projectId     String?
+  grossCents    Int
+  feeCents      Int       @default(0)
+  netCents      Int
+  saleDate      DateTime
+  receiveDate   DateTime?
+  status        String    @default("PENDING") // PENDING | PAID | CANCELED | REFUNDED | PARTIALLY_PAID
+  paymentMethod String    @default("PIX") // PIX | CARD | BOLETO | TRANSFER | CASH | OTHER
+  platform      String    @default("MANUAL") // MANUAL | STRIPE | MERCADO_PAGO | ASAAS | PAGARME | HOTMART | KIWIFY | EDUZZ | BLACKCAT | PERFECT_PAY | BRAIP | OTHER
+  note          String?
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@index([saleDate])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+  @@map("revenues")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String // TASK_ASSIGNED | MENTION | DEADLINE_CHANGED | TASK_DUE_SOON | TASK_OVERDUE | DEADLINE_REQUEST | DEADLINE_APPROVED | DEADLINE_REJECTED | PROJECT_UPDATED | USER_APPROVED
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// Histórico imutável de auditoria: somente INSERT pela aplicação.
+model ActivityLog {
+  id         String   @id @default(uuid())
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorId    String?
+  entityType String // TASK | PROJECT | CLIENT | REVENUE | USER | DEADLINE_REQUEST
+  entityId   String
+  action     String // CREATED | UPDATED | STATUS_CHANGED | PRIORITY_CHANGED | DEADLINE_CHANGED | RESPONSIBLE_CHANGED | COMMENT_ADDED | FILE_ATTACHED | CHECKLIST_CHANGED | COMPLETED | REOPENED | DEADLINE_REQUEST_CREATED | DEADLINE_REQUEST_APPROVED | DEADLINE_REQUEST_REJECTED | ...
+  oldValue   String? // JSON string
+  newValue   String? // JSON string
+  message    String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// Configurações simples chave/valor (ex.: meta mensal de faturamento em centavos)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String   @default("#7C3AED")
+  createdAt DateTime @default(now())
+
+  tasks    TaskTag[]
+  projects ProjectTag[]
+
+  @@map("tags")
+}
+
+model TaskTag {
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+model ProjectTag {
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId     String
+
+  @@id([projectId, tagId])
+  @@map("project_tags")
+}
