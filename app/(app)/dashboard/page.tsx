@@ -11,9 +11,8 @@ import {
   FolderKanban,
   ListTodo,
   Target,
-  TrendingDown,
-  TrendingUp,
   Users,
+  Trophy,
 } from "lucide-react";
 import { requireUser } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/rbac";
@@ -21,7 +20,6 @@ import { cn } from "@/lib/utils";
 import {
   formatBRL,
   formatDate,
-  formatPercent,
   greetingForHour,
   toSaoPaulo,
 } from "@/lib/format";
@@ -31,7 +29,8 @@ import { Badge, PRIORITY_TONE, PROJECT_STATUS_TONE } from "@/components/ui/badge
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
-import { getDashboardData, type RevenueCardData } from "./queries";
+import { getDashboardData } from "./queries";
+import { RevenueOverviewCard } from "./revenue-overview-card";
 import {
   ClientRevenueBarChart,
   ProjectStatusBarChart,
@@ -81,16 +80,10 @@ export default async function DashboardPage({
       <PageHeader title={`${greeting}, ${firstName}`} description={todayLong} />
 
       {/* Linha 1 — cards de faturamento (apenas finance.view) */}
-      {finance && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {finance.revenueCards.map((card) => (
-            <RevenueStatCard key={card.label} card={card} />
-          ))}
-        </div>
-      )}
+      {finance && <RevenueOverviewCard periods={finance.revenuePeriods} />}
 
       {/* Linha 2 — indicadores operacionais */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-8">
         <StatCard label="Clientes ativos" value={data.activeClients} icon={Users} />
         <StatCard
           label="Projetos em andamento"
@@ -115,6 +108,8 @@ export default async function DashboardPage({
           value={data.completedThisMonth}
           icon={CheckCircle2}
         />
+        <StatCard label="Metas ativas" value={data.activeGoals} icon={Target} />
+        <StatCard label="Missões pendentes" value={data.pendingMissions} icon={Trophy} />
       </div>
 
       {/* Meta mensal (dado financeiro — apenas finance.view) */}
@@ -367,36 +362,6 @@ export default async function DashboardPage({
   );
 }
 
-/** Card de faturamento com variação vs período anterior. */
-function RevenueStatCard({ card }: { card: RevenueCardData }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-2 p-5">
-        <span className="text-sm text-muted">Faturamento · {card.label}</span>
-        <span className="text-2xl font-bold tracking-tight">
-          {formatBRL(card.currentCents)}
-        </span>
-        <div className="flex items-center gap-2">
-          {card.change === null ? (
-            <span className="text-sm font-medium text-muted">—</span>
-          ) : card.change >= 0 ? (
-            <span className="inline-flex items-center gap-1 text-sm font-medium text-success">
-              <TrendingUp className="h-4 w-4" aria-hidden />
-              {formatPercent(card.change)}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-sm font-medium text-danger">
-              <TrendingDown className="h-4 w-4" aria-hidden />
-              {formatPercent(card.change)}
-            </span>
-          )}
-          <span className="text-xs text-muted">vs período anterior</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 /** Card compacto de indicador operacional. */
 function StatCard({
   label,
@@ -459,7 +424,7 @@ function MonthlyGoalCard({
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-border/60">
           <div
-            className="h-full rounded-full bg-primary shadow-glow-sm transition-all"
+            className="h-full rounded-full bg-primary shadow-glow-sm transition-[width]"
             style={{ width: `${width}%` }}
           />
         </div>

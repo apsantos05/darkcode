@@ -199,7 +199,7 @@ export default async function ProjetoDetalhePage({
               aria-label={`Progresso do projeto: ${progress}%`}
             >
               <div
-                className="h-full rounded-full bg-primary transition-all"
+                className="h-full rounded-full bg-primary transition-[width]"
                 style={{ width: `${progress}%` }}
               />
             </div>

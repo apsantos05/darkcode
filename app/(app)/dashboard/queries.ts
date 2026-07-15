@@ -48,7 +48,10 @@ export async function revenueInRange(start: Date, end: Date): Promise<number> {
   return result._sum.netCents ?? 0;
 }
 
-export type RevenueCardData = {
+export type RevenuePeriodKey = "today" | "7d" | "15d" | "30d" | "90d";
+
+export type RevenuePeriodData = {
+  key: RevenuePeriodKey;
   label: string;
   currentCents: number;
   previousCents: number;
@@ -57,22 +60,24 @@ export type RevenueCardData = {
 };
 
 /**
- * Cards de faturamento: Hoje, 7, 15 e 30 dias — cada um comparado ao período
- * equivalente imediatamente anterior (dias completos).
+ * Períodos disponíveis no card de faturamento, cada um comparado ao intervalo
+ * equivalente imediatamente anterior.
  */
-export async function getRevenueCards(): Promise<RevenueCardData[]> {
+export async function getRevenuePeriods(): Promise<RevenuePeriodData[]> {
   const now = nowSP();
   const todayStart = startOfDay(now);
 
   const periods = [
     {
+      key: "today" as const,
       label: "Hoje",
       start: todayStart,
       end: now,
       prevStart: startOfDay(subDays(now, 1)),
       prevEnd: todayStart,
     },
-    ...[7, 15, 30].map((n) => ({
+    ...([7, 15, 30, 90] as const).map((n) => ({
+      key: `${n}d` as RevenuePeriodKey,
       label: `${n} dias`,
       start: startOfDay(subDays(now, n - 1)),
       end: now,
@@ -92,7 +97,7 @@ export async function getRevenueCards(): Promise<RevenueCardData[]> {
         currentCents === 0 && previousCents === 0
           ? null
           : percentChange(currentCents, previousCents);
-      return { label: p.label, currentCents, previousCents, change };
+      return { key: p.key, label: p.label, currentCents, previousCents, change };
     }),
   );
 }
@@ -245,6 +250,16 @@ export function getTasksCompletedThisMonthCount(): Promise<number> {
   const monthStart = startOfMonth(now);
   return db.task.count({
     where: { archivedAt: null, completedAt: { gte: monthStart, lte: now } },
+  });
+}
+
+export function getActiveGoalsCount(): Promise<number> {
+  return db.goal.count({ where: { archivedAt: null, status: { in: ["PLANNING", "IN_PROGRESS"] } } });
+}
+
+export function getPendingMissionsCount(userId: string): Promise<number> {
+  return db.mission.count({
+    where: { archivedAt: null, status: { notIn: ["DONE", "CANCELED"] }, OR: [{ assigneeId: userId }, { assigneeId: null }] },
   });
 }
 
@@ -441,7 +456,7 @@ export function getRecentActivities(): Promise<RecentActivity[]> {
 // ---------------------------------------------------------------------------
 
 export type DashboardFinanceData = {
-  revenueCards: RevenueCardData[];
+  revenuePeriods: RevenuePeriodData[];
   dailySeries: DailyRevenuePoint[];
   revenueByClient: ClientRevenueSlice[];
   monthlyGoal: MonthlyGoalData;
@@ -456,6 +471,8 @@ export type DashboardData = {
   pendingTasks: number;
   overdueTasks: number;
   completedThisMonth: number;
+  activeGoals: number;
+  pendingMissions: number;
   tasksByStatus: StatusCount[];
   projectsByStatus: StatusCount[];
   myTasks: MyPriorityTask[];
@@ -471,12 +488,12 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const financePromise: Promise<DashboardFinanceData | null> = options.includeFinance
     ? Promise.all([
-        getRevenueCards(),
+        getRevenuePeriods(),
         getDailyRevenueSeries(options.periodDays),
         getRevenueByClient(options.periodDays),
         getMonthlyGoal(),
-      ]).then(([revenueCards, dailySeries, revenueByClient, monthlyGoal]) => ({
-        revenueCards,
+      ]).then(([revenuePeriods, dailySeries, revenueByClient, monthlyGoal]) => ({
+        revenuePeriods,
         dailySeries,
         revenueByClient,
         monthlyGoal,
@@ -491,6 +508,8 @@ export async function getDashboardData(
     pendingTasks,
     overdueTasks,
     completedThisMonth,
+    activeGoals,
+    pendingMissions,
     tasksByStatus,
     projectsByStatus,
     myTasks,
@@ -505,6 +524,8 @@ export async function getDashboardData(
     getPendingTasksCount(),
     getOverdueTasksCount(),
     getTasksCompletedThisMonthCount(),
+    getActiveGoalsCount(),
+    getPendingMissionsCount(userId),
     getTasksByStatus(),
     getProjectsByStatus(),
     getMyPriorityTasks(userId),
@@ -521,6 +542,8 @@ export async function getDashboardData(
     pendingTasks,
     overdueTasks,
     completedThisMonth,
+    activeGoals,
+    pendingMissions,
     tasksByStatus,
     projectsByStatus,
     myTasks,

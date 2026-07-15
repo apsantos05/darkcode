@@ -209,7 +209,7 @@ export default async function ProjetosPage({ searchParams }: { searchParams: Sea
                         aria-label={`Progresso do projeto ${project.name}: ${progress}%`}
                       >
                         <div
-                          className="h-full rounded-full bg-primary transition-all"
+                          className="h-full rounded-full bg-primary transition-[width]"
                           style={{ width: `${progress}%` }}
                         />
                       </div>

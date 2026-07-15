@@ -4,7 +4,7 @@ import type { NotificationType } from "@/lib/constants";
 
 type LogInput = {
   actorId: string | null;
-  entityType: "TASK" | "PROJECT" | "CLIENT" | "REVENUE" | "USER" | "DEADLINE_REQUEST";
+  entityType: "TASK" | "PROJECT" | "CLIENT" | "REVENUE" | "USER" | "DEADLINE_REQUEST" | "GOAL" | "MISSION";
   entityId: string;
   action: string;
   message?: string;

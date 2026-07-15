@@ -77,7 +77,7 @@ export function Sidebar({ role }: { role: UserRole }) {
             onClick={() => setMobileOpen(false)}
             aria-hidden
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-surface animate-fade-in">
+          <aside className="absolute inset-y-0 left-0 flex w-[min(18rem,88vw)] flex-col overscroll-contain border-r border-border bg-surface animate-fade-in">
             <div className="flex items-center justify-between px-4 py-4 border-b border-border">
               <Image src="/images/dark-code-logo.svg" alt="Dark Code" width={150} height={33} />
               <Button variant="ghost" size="iconSm" onClick={() => setMobileOpen(false)} aria-label="Fechar menu">

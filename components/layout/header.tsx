@@ -12,10 +12,10 @@ export async function Header({ user }: { user: CurrentUser }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 backdrop-blur px-4 pl-16 lg:px-6 lg:pl-6">
-      <div className="flex-1 max-w-md">
+      <div className="min-w-0 max-w-md flex-1">
         <GlobalSearch />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
         <Link
           href="/notificacoes"
           className="relative flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-card hover:text-foreground transition-colors"

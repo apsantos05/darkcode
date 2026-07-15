@@ -1,0 +1,3 @@
+"use client";
+import { useTransition } from "react";import { Trash2 } from "lucide-react";import { toast } from "sonner";import { Button } from "@/components/ui/button";import { archiveGoalAction } from "./actions";
+export function ArchiveGoalButton({id}:{id:string}){const[pending,start]=useTransition();return <Button variant="danger" size="iconSm" loading={pending} aria-label="Arquivar meta" onClick={()=>{if(!confirm("Arquivar esta meta?"))return;start(async()=>{const r=await archiveGoalAction(id);if(r.ok)toast.success(r.message);else toast.error(r.message)})}}>{!pending&&<Trash2 className="h-4 w-4"/>}</Button>}

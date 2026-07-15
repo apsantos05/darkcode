@@ -48,9 +48,14 @@ model User {
   approvedBy       User?                @relation("UserApprover", fields: [approvedById], references: [id])
   approvedById     String?
   timeEntries      TimeEntry[]
+  goalsOwned       Goal[]                @relation("GoalOwner")
+  goalsCreated     Goal[]                @relation("GoalCreator")
+  missionsAssigned Mission[]             @relation("MissionAssignee")
+  missionsCreated  Mission[]             @relation("MissionCreator")
 
   @@index([status])
   @@index([role])
+  @@index([approvedById])
   @@map("users")
 }
 
@@ -140,6 +145,7 @@ model ProjectMember {
   createdAt DateTime @default(now())
 
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -181,6 +187,8 @@ model Task {
   @@index([projectId])
   @@index([clientId])
   @@index([responsibleId])
+  @@index([creatorId])
+  @@index([dependsOnId])
   @@index([status])
   @@index([dueDate])
   @@map("tasks")
@@ -195,6 +203,7 @@ model TaskAssignee {
   createdAt DateTime @default(now())
 
   @@unique([taskId, userId])
+  @@index([userId])
   @@map("task_assignees")
 }
 
@@ -224,6 +233,7 @@ model TaskComment {
   createdAt DateTime  @default(now())
 
   @@index([taskId])
+  @@index([authorId])
   @@map("task_comments")
 }
 
@@ -240,6 +250,7 @@ model TaskAttachment {
   createdAt  DateTime @default(now())
 
   @@index([taskId])
+  @@index([uploaderId])
   @@map("task_attachments")
 }
 
@@ -283,6 +294,8 @@ model DeadlineRequest {
 
   @@index([taskId])
   @@index([status])
+  @@index([requesterId])
+  @@index([reviewerId])
   @@map("task_deadline_requests")
 }
 
@@ -312,6 +325,7 @@ model Revenue {
   @@index([clientId])
   @@index([projectId])
   @@index([status])
+  @@index([createdById])
   @@map("revenues")
 }
 
@@ -358,6 +372,61 @@ model Setting {
   @@map("settings")
 }
 
+model Goal {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  metric       String
+  targetValue  Float
+  currentValue Float     @default(0)
+  unit         String    @default("unidades")
+  status       String    @default("PLANNING") // PLANNING | IN_PROGRESS | ACHIEVED | PAUSED | CANCELED
+  startDate    DateTime?
+  dueDate      DateTime?
+  owner        User?     @relation("GoalOwner", fields: [ownerId], references: [id])
+  ownerId      String?
+  creator      User      @relation("GoalCreator", fields: [creatorId], references: [id])
+  creatorId    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  archivedAt   DateTime?
+  missions     Mission[]
+
+  @@index([status])
+  @@index([ownerId])
+  @@index([dueDate])
+  @@index([creatorId])
+  @@map("goals")
+}
+
+model Mission {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  priority    String    @default("MEDIUM")
+  status      String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | DONE | CANCELED
+  points      Int       @default(0)
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+  goal        Goal?     @relation(fields: [goalId], references: [id])
+  goalId      String?
+  assignee    User?     @relation("MissionAssignee", fields: [assigneeId], references: [id])
+  assigneeId  String?
+  creator     User      @relation("MissionCreator", fields: [creatorId], references: [id])
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([goalId])
+  @@index([dueDate])
+  @@index([creatorId])
+  @@map("missions")
+}
+
 model Tag {
   id        String   @id @default(uuid())
   name      String   @unique
@@ -377,6 +446,7 @@ model TaskTag {
   tagId  String
 
   @@id([taskId, tagId])
+  @@index([tagId])
   @@map("task_tags")
 }
 
@@ -387,5 +457,6 @@ model ProjectTag {
   tagId     String
 
   @@id([projectId, tagId])
+  @@index([tagId])
   @@map("project_tags")
 }
