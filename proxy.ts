@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const SESSION_COOKIE = "dc_session";
-const PUBLIC_ROUTES = ["/login", "/cadastro", "/recuperar-senha", "/redefinir-senha"];
+const AUTH_ROUTES = ["/login", "/cadastro", "/recuperar-senha", "/redefinir-senha"];
+const PUBLIC_ROUTES = [...AUTH_ROUTES, "/api/webhooks/blackcat"];
 
 async function hasValidSession(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -18,6 +19,7 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
   const authenticated = await hasValidSession(request);
 
   if (!authenticated && !isPublic) {
@@ -26,7 +28,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (authenticated && (isPublic || pathname === "/")) {
+  if (authenticated && (isAuthRoute || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
