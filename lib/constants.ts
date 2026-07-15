@@ -123,6 +123,7 @@ export const DEADLINE_REQUEST_STATUS = {
 export type DeadlineRequestStatus = keyof typeof DEADLINE_REQUEST_STATUS;
 
 export const NOTIFICATION_TYPES = {
+  ANNOUNCEMENT: "Comunicado",
   TASK_ASSIGNED: "Nova tarefa atribuída",
   MENTION: "Menção em comentário",
   DEADLINE_CHANGED: "Mudança de prazo",

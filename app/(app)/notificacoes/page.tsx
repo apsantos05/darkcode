@@ -8,6 +8,7 @@ import {
   CalendarClock,
   ExternalLink,
   ListTodo,
+  Plus,
   type LucideIcon,
 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -19,6 +20,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { MarkAllReadButton, MarkReadButton } from "./notification-actions";
+import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Notificações" };
 
@@ -85,7 +87,7 @@ export default async function NotificacoesPage({
             ? `Você tem ${unreadCount} ${unreadCount === 1 ? "notificação não lida" : "notificações não lidas"}.`
             : "Você está em dia com suas notificações."
         }
-        actions={<MarkAllReadButton unreadCount={unreadCount} />}
+        actions={<>{user.role === "ADMIN" && <Link href="/notificacoes/nova" className={buttonVariants({ size: "sm" })}><Plus className="h-4 w-4" />Nova notificação</Link>}<MarkAllReadButton unreadCount={unreadCount} /></>}
       />
 
       <div className="mb-4 flex gap-2">

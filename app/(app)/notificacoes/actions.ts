@@ -5,6 +5,27 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import type { ActionResult } from "@/app/(auth)/actions";
+import { assertPermission } from "@/lib/rbac";
+import { logActivity, notifyMany } from "@/lib/activity";
+
+const createNotificationSchema = z.object({
+  target: z.string().min(1, "Selecione os destinatários"),
+  title: z.string().trim().min(2, "Informe um título").max(160),
+  body: z.string().trim().min(2, "Escreva a mensagem").max(2000),
+  link: z.string().trim().max(500).optional().transform((value) => value || undefined).refine((value) => !value || value.startsWith("/"), "Use um link interno iniciado por /")
+});
+
+export async function createNotificationAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const actor = await requireUser(); assertPermission(actor.role, "settings.admin");
+  const parsed = createNotificationSchema.safeParse({ target: formData.get("target"), title: formData.get("title"), body: formData.get("body"), link: formData.get("link") });
+  if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
+  const users = await db.user.findMany({ where: { status: "ACTIVE", deletedAt: null, ...(parsed.data.target === "ALL" ? {} : { id: parsed.data.target }) }, select: { id: true } });
+  if (!users.length) return { ok: false, fieldErrors: { target: ["Nenhum destinatário ativo foi encontrado."] } };
+  await notifyMany(users.map((user) => user.id), { type: "ANNOUNCEMENT", title: parsed.data.title, body: parsed.data.body, link: parsed.data.link });
+  await logActivity({ actorId: actor.id, entityType: "USER", entityId: actor.id, action: "NOTIFICATION_SENT", message: `Notificação enviada para ${users.length} usuário${users.length === 1 ? "" : "s"}` });
+  revalidatePath("/notificacoes");
+  return { ok: true, message: `Notificação enviada para ${users.length} usuário${users.length === 1 ? "" : "s"}.` };
+}
 
 /** Marca uma notificação como lida — somente se pertencer ao usuário atual. */
 export async function markReadAction(id: string): Promise<ActionResult> {
