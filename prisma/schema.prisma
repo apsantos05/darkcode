@@ -48,10 +48,11 @@ model User {
   approvedBy       User?                @relation("UserApprover", fields: [approvedById], references: [id])
   approvedById     String?
   timeEntries      TimeEntry[]
-  goalsOwned       Goal[]                @relation("GoalOwner")
-  goalsCreated     Goal[]                @relation("GoalCreator")
-  missionsAssigned Mission[]             @relation("MissionAssignee")
-  missionsCreated  Mission[]             @relation("MissionCreator")
+  goalsOwned       Goal[]               @relation("GoalOwner")
+  goalsCreated     Goal[]               @relation("GoalCreator")
+  missionsAssigned Mission[]            @relation("MissionAssignee")
+  missionsCreated  Mission[]            @relation("MissionCreator")
+  paymentCharges   PaymentCharge[]      @relation("PaymentChargeCreator")
 
   @@index([status])
   @@index([role])
@@ -95,9 +96,10 @@ model Client {
   updatedAt     DateTime  @updatedAt
   archivedAt    DateTime?
 
-  projects Project[]
-  tasks    Task[]
-  revenues Revenue[]
+  projects       Project[]
+  tasks          Task[]
+  revenues       Revenue[]
+  paymentCharges PaymentCharge[]
 
   @@index([status])
   @@index([ownerId])
@@ -125,10 +127,11 @@ model Project {
   updatedAt     DateTime  @updatedAt
   archivedAt    DateTime?
 
-  members  ProjectMember[]
-  tasks    Task[]
-  revenues Revenue[]
-  tags     ProjectTag[]
+  members        ProjectMember[]
+  tasks          Task[]
+  revenues       Revenue[]
+  paymentCharges PaymentCharge[]
+  tags           ProjectTag[]
 
   @@index([clientId])
   @@index([managerId])
@@ -300,26 +303,27 @@ model DeadlineRequest {
 }
 
 model Revenue {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   description   String
-  client        Client?   @relation(fields: [clientId], references: [id])
+  client        Client?        @relation(fields: [clientId], references: [id])
   clientId      String?
-  project       Project?  @relation(fields: [projectId], references: [id])
+  project       Project?       @relation(fields: [projectId], references: [id])
   projectId     String?
   grossCents    Int
-  feeCents      Int       @default(0)
+  feeCents      Int            @default(0)
   netCents      Int
   saleDate      DateTime
   receiveDate   DateTime?
-  status        String    @default("PENDING") // PENDING | PAID | CANCELED | REFUNDED | PARTIALLY_PAID
-  paymentMethod String    @default("PIX") // PIX | CARD | BOLETO | TRANSFER | CASH | OTHER
-  platform      String    @default("MANUAL") // MANUAL | STRIPE | MERCADO_PAGO | ASAAS | PAGARME | HOTMART | KIWIFY | EDUZZ | BLACKCAT | PERFECT_PAY | BRAIP | OTHER
+  status        String         @default("PENDING") // PENDING | PAID | CANCELED | REFUNDED | PARTIALLY_PAID
+  paymentMethod String         @default("PIX") // PIX | CARD | BOLETO | TRANSFER | CASH | OTHER
+  platform      String         @default("MANUAL") // MANUAL | STRIPE | MERCADO_PAGO | ASAAS | PAGARME | HOTMART | KIWIFY | EDUZZ | BLACKCAT | PERFECT_PAY | BRAIP | OTHER
   note          String?
-  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdBy     User           @relation(fields: [createdById], references: [id])
   createdById   String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
+  paymentCharge PaymentCharge?
 
   @@index([saleDate])
   @@index([clientId])
@@ -327,6 +331,40 @@ model Revenue {
   @@index([status])
   @@index([createdById])
   @@map("revenues")
+}
+
+model PaymentCharge {
+  id                    String    @id @default(uuid())
+  provider              String    @default("BLACKCAT")
+  providerTransactionId String?   @unique
+  externalReference     String    @unique
+  description           String
+  grossCents            Int
+  feeCents              Int       @default(0)
+  netCents              Int
+  status                String    @default("PENDING")
+  paymentMethod         String    @default("PIX")
+  invoiceUrl            String?
+  pixCopyPaste          String?
+  expiresAt             DateTime?
+  paidAt                DateTime?
+  client                Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientId              String?
+  project               Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId             String?
+  revenue               Revenue?  @relation(fields: [revenueId], references: [id], onDelete: SetNull)
+  revenueId             String?   @unique
+  createdBy             User      @relation("PaymentChargeCreator", fields: [createdById], references: [id])
+  createdById           String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([status])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([createdAt])
+  @@index([createdById])
+  @@map("payment_charges")
 }
 
 model Notification {
