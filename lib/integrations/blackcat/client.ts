@@ -53,7 +53,7 @@ export class BlackcatApiError extends Error {
 function configuration() {
   const apiKey = process.env.BLACKCAT_API_KEY?.trim();
   const baseUrl = (
-    process.env.BLACKCAT_API_BASE_URL?.trim() || "https://api.blackcathub.com/api"
+    process.env.BLACKCAT_API_BASE_URL?.trim() || "https://api.blackcatoficial.com/api"
   ).replace(/\/$/, "");
 
   if (!apiKey) {
@@ -65,27 +65,45 @@ function configuration() {
 
 async function request(path: string, init?: RequestInit): Promise<BlackcatTransaction> {
   const { apiKey, baseUrl } = configuration();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-API-Key": apiKey,
-      ...init?.headers,
-    },
-    signal: AbortSignal.timeout(12_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+        ...init?.headers,
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch {
+    throw new BlackcatApiError(
+      "Não foi possível conectar à API da BlackCat. Tente novamente em instantes.",
+    );
+  }
 
   const raw: unknown = await response.json().catch(() => null);
   const parsed = apiResponseSchema.safeParse(raw);
 
   if (!response.ok || !parsed.success || !parsed.data.success || !parsed.data.data) {
+    const rawRecord =
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>) : undefined;
+    const rawMessage =
+      typeof rawRecord?.message === "string"
+        ? rawRecord.message
+        : typeof rawRecord?.error === "string"
+          ? rawRecord.error
+          : undefined;
     const message = parsed.success
       ? parsed.data.message || parsed.data.error
-      : undefined;
+      : rawMessage;
     throw new BlackcatApiError(
-      message || "A BlackCat não conseguiu processar a solicitação.",
+      message ||
+        (response.status === 401
+          ? "A BlackCat recusou a chave privada configurada. Gere uma nova chave no painel e atualize a integração."
+          : "A BlackCat não conseguiu processar a solicitação."),
       response.status,
     );
   }
