@@ -134,8 +134,27 @@ export const NOTIFICATION_TYPES = {
   DEADLINE_REJECTED: "Solicitação de prazo recusada",
   PROJECT_UPDATED: "Projeto atualizado",
   USER_APPROVED: "Usuário aprovado",
+  MISSION_ASSIGNED: "Nova missão atribuída",
+  GOAL_UPDATED: "Meta atualizada",
 } as const;
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
+
+export const GOAL_STATUS = {
+  PLANNING: "Planejamento",
+  IN_PROGRESS: "Em andamento",
+  ACHIEVED: "Atingida",
+  PAUSED: "Pausada",
+  CANCELED: "Cancelada",
+} as const;
+export type GoalStatus = keyof typeof GOAL_STATUS;
+
+export const MISSION_STATUS = {
+  NOT_STARTED: "Não iniciada",
+  IN_PROGRESS: "Em andamento",
+  DONE: "Concluída",
+  CANCELED: "Cancelada",
+} as const;
+export type MissionStatus = keyof typeof MISSION_STATUS;
 
 export const PRIORITY_ORDER: Priority[] = ["CRITICAL", "URGENT", "HIGH", "MEDIUM", "LOW"];
 

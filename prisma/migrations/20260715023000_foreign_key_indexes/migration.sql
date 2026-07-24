@@ -1,0 +1,14 @@
+CREATE INDEX "users_approvedById_idx" ON "users"("approvedById");
+CREATE INDEX "project_members_userId_idx" ON "project_members"("userId");
+CREATE INDEX "tasks_creatorId_idx" ON "tasks"("creatorId");
+CREATE INDEX "tasks_dependsOnId_idx" ON "tasks"("dependsOnId");
+CREATE INDEX "task_assignees_userId_idx" ON "task_assignees"("userId");
+CREATE INDEX "task_comments_authorId_idx" ON "task_comments"("authorId");
+CREATE INDEX "task_attachments_uploaderId_idx" ON "task_attachments"("uploaderId");
+CREATE INDEX "task_deadline_requests_requesterId_idx" ON "task_deadline_requests"("requesterId");
+CREATE INDEX "task_deadline_requests_reviewerId_idx" ON "task_deadline_requests"("reviewerId");
+CREATE INDEX "revenues_createdById_idx" ON "revenues"("createdById");
+CREATE INDEX "goals_creatorId_idx" ON "goals"("creatorId");
+CREATE INDEX "missions_creatorId_idx" ON "missions"("creatorId");
+CREATE INDEX "task_tags_tagId_idx" ON "task_tags"("tagId");
+CREATE INDEX "project_tags_tagId_idx" ON "project_tags"("tagId");
